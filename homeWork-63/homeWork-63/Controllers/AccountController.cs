@@ -49,7 +49,7 @@ public class AccountController : Controller
             {
                 UserName = model.UserName,
                 Email = model.Email,
-                BirthDate = model.BirthDate,
+                BirthDate = DateTime.SpecifyKind(model.BirthDate, DateTimeKind.Utc),
                 Avatar = avatarPath ?? "/images/default-avatar.png"
             };
 
@@ -57,7 +57,7 @@ public class AccountController : Controller
             if (result.Succeeded)
             {
                 await _signInManager.SignInAsync(user, isPersistent: false);
-                return RedirectToAction("Index", "Home");
+                return RedirectToAction("Index", "Chat");
             }
 
             foreach (var error in result.Errors)
@@ -86,7 +86,7 @@ public class AccountController : Controller
                     user.UserName!, model.Password, isPersistent: false, lockoutOnFailure: false);
 
                 if (result.Succeeded)
-                    return RedirectToAction("Index", "Home");
+                    return RedirectToAction("Index", "Chat");
             }
 
             ModelState.AddModelError(string.Empty, "Неверный логин/email или пароль.");
