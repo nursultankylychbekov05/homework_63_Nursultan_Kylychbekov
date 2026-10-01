@@ -42,7 +42,54 @@ app.MapStaticAssets();
 
 app.MapControllerRoute(
         name: "default",
-        pattern: "{controller=Home}/{action=Index}/{id?}")
+        pattern: "{controller=Chat}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = services.GetRequiredService<UserManager<User>>();
+
+        if (!await roleManager.RoleExistsAsync("admin"))
+            await roleManager.CreateAsync(new IdentityRole("admin"));
+
+        if (!await roleManager.RoleExistsAsync("user"))
+            await roleManager.CreateAsync(new IdentityRole("user"));
+
+        string adminEmail = "admin@chat.com";
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
+        
+        if (adminUser == null)
+        {
+            adminUser = new User
+            {
+                UserName = "Admin",
+                Email = adminEmail,
+                EmailConfirmed = true,
+                BirthDate = DateTime.SpecifyKind(new DateTime(1990, 1, 1), DateTimeKind.Utc)
+            };
+            var result = await userManager.CreateAsync(adminUser, "Admin123!");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(adminUser, "admin");
+            }
+        }
+        else
+        {
+            if (!await userManager.IsInRoleAsync(adminUser, "admin"))
+            {
+                await userManager.AddToRoleAsync(adminUser, "admin");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Ошибка при создании ролей и администратора.");
+    }
+}
 
 app.Run();
