@@ -1,0 +1,107 @@
+﻿@{
+    ViewData["Title"] = "Чат";
+    var currentUserId = ViewBag.CurrentUserId;
+}
+
+<div class="row justify-content-center mt-3">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span>Многопользовательский чат</span>
+                <span id="char-counter" class="small text-muted">0 / 150</span>
+            </div>
+            
+            <div class="card-body chat-window" id="chatWindow" style="height: 450px; overflow-y: auto; background-color: #f8f9fa;">
+                <div id="messagesList" class="d-flex flex-column gap-3">
+                </div>
+            </div>
+
+            <div class="card-footer bg-white">
+                <form id="chatForm" class="d-flex gap-2">
+                    <input type="text" id="messageText" class="form-control" placeholder="Введите ваше сообщение (до 150 символов)..." maxlength="150" autocomplete="off" required />
+                    <button type="submit" class="btn btn-primary">Отправить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            const $chatWindow =$('#chatWindow');
+            const $messagesList =$('#messagesList');
+            const $messageText =$('#messageText');
+            const $charCounter =$('#char-counter');
+            const currentUserId = '@currentUserId';
+
+        
+            function loadMessages() {
+                $.get('/Chat/GetMessages', function (data) {
+                    let isScrolledToBottom = $chatWindow[0].scrollHeight - $chatWindow.scrollTop() <=$chatWindow.outerHeight() + 50;
+                    
+                    $messagesList.empty();
+                    data.forEach(m => {
+                        let isMe = m.userId === currentUserId;
+                        let alignClass = isMe ? 'ms-auto text-end flex-row-reverse' : 'me-auto';
+                        let bgClass = isMe ? 'bg-primary text-white' : 'bg-white border';
+
+                        let html = `
+                            <div class="d-flex align-items-start gap-2 max-w-75 ${alignClass}" style="max-width: 75%;">
+                                <img src="${m.avatar}" class="rounded-circle" style="width: 35px; height: 35px; object-fit: cover;" />
+                                <div>
+                                    <div class="small text-muted mb-1">
+                                        <a href="/Users/Profile?id=${m.userId}" class="text-decoration-none fw-bold text-dark">${m.userName}</a> 
+                                        <span class="ms-1" style="font-size: 11px;">${m.createdAt}</span>
+                                    </div>
+                                    <div class="p-2 rounded ${bgClass}" style="word-break: break-all;">
+                                        ${escapeHtml(m.text)}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        $messagesList.append(html);
+                    });
+
+                    if (isScrolledToBottom) {
+                        scrollToBottom();
+                    }
+                });
+            }
+
+            function scrollToBottom() {
+                $chatWindow.scrollTop($chatWindow[0].scrollHeight);
+            }
+
+            function escapeHtml(text) {
+                return $('<div>').text(text).html();
+            }
+            
+            $messageText.on('input', function () {
+                let length = $(this).val().length;
+                $charCounter.text(length + ' / 150');
+            });
+            
+            $('#chatForm').on('submit', function (e) {
+                e.preventDefault();
+                let text = $messageText.val().trim();
+                if (!text) return;
+
+                $.post('/Chat/SendMessage', { text: text }, function (response) {
+                    if (response.success) {
+                        $messageText.val('');$charCounter.text('0 / 150');
+                        loadMessages();
+                        setTimeout(scrollToBottom, 100);
+                    }
+                }).fail(function () {
+                    alert('Ошибка отправки сообщения.');
+                });
+            });
+            
+            loadMessages();
+            setTimeout(scrollToBottom, 300);
+            setInterval(loadMessages, 5000);
+        });
+    </script>
+}
