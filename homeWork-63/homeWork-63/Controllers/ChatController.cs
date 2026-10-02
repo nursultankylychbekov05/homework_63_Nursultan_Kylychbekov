@@ -82,4 +82,23 @@ public class ChatController : Controller
             avatar = user.Avatar
         });
     }
+    
+    [HttpPost]
+    [Authorize]
+    public async Task<IActionResult> DeleteMessage(int id)
+    {
+        var message = await _context.Messages.FindAsync(id);
+        if (message == null) return NotFound();
+        
+        var currentUser = await _userManager.GetUserAsync(User);
+        bool isAdmin = await _userManager.IsInRoleAsync(currentUser, "admin");
+
+        if (message.UserId == currentUser.Id || isAdmin)
+        {
+            _context.Messages.Remove(message);
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok();
+    }
 }
